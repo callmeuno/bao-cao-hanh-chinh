@@ -1,22 +1,20 @@
-create extension if not exists pgcrypto;
-
-create type public.user_role as enum ('admin','leader','department_manager','staff','viewer');
-create type public.report_period_type as enum ('day','week','month','quarter','year');
-create type public.report_status as enum ('draft','submitted','pending_approval','approved','rejected');
+create extension if not exists "pgcrypto";
 
 create table public.departments (
   id uuid primary key default gen_random_uuid(),
   code text unique not null,
   name text not null,
-  active boolean not null default true,
+  description text,
+  is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
-  role public.user_role not null default 'staff',
   department_id uuid references public.departments(id),
+  role text not null default 'staff',
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -28,26 +26,21 @@ create table public.indicators (
   unit text,
   description text,
   data_type text not null default 'number',
-  active boolean not null default true,
+  is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
 
 create table public.reports (
   id uuid primary key default gen_random_uuid(),
   department_id uuid not null references public.departments(id),
-  period_type public.report_period_type not null,
-  period_start date not null,
-  period_end date not null,
-  year int not null,
   title text not null,
-  status public.report_status not null default 'draft',
-  source_file_path text,
-  source_file_name text,
-  uploaded_by uuid references public.profiles(id),
+  report_type text not null default 'periodic',
+  period_start date,
+  period_end date,
+  year integer,
+  status text not null default 'draft',
+  submitted_by uuid references public.profiles(id),
   submitted_at timestamptz,
-  approved_by uuid references public.profiles(id),
-  approved_at timestamptz,
-  rejection_reason text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -56,29 +49,59 @@ create table public.report_values (
   id uuid primary key default gen_random_uuid(),
   report_id uuid not null references public.reports(id) on delete cascade,
   indicator_id uuid not null references public.indicators(id),
-  numeric_value numeric,
-  text_value text,
-  unit text,
-  source_location text,
-  confidence numeric,
+  value_numeric numeric,
+  value_text text,
+  note text,
   created_at timestamptz not null default now(),
   unique(report_id, indicator_id)
 );
 
-create table public.audit_logs (
-  id bigint generated always as identity primary key,
-  actor_id uuid references public.profiles(id),
-  action text not null,
-  entity_type text not null,
-  entity_id uuid,
-  metadata jsonb,
+create table public.report_files (
+  id uuid primary key default gen_random_uuid(),
+  report_id uuid not null references public.reports(id),
+  original_filename text not null,
+  storage_path text not null,
+  mime_type text,
+  file_size bigint,
+  uploaded_by uuid references public.profiles(id),
   created_at timestamptz not null default now()
 );
 
-create index reports_department_period_idx on public.reports(department_id, period_start, period_end);
-create index report_values_indicator_idx on public.report_values(indicator_id);
-create index audit_logs_entity_idx on public.audit_logs(entity_type, entity_id);
+create table public.audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id),
+  action text not null,
+  table_name text,
+  record_id uuid,
+  details jsonb,
+  created_at timestamptz not null default now()
+);
 
-insert into public.departments(code,name) values
-('VH','Văn hóa'),('TT','Thông tin'),('TDTT','Thể thao'),('KN','Khuyến nông'),('CNTY','Chăn nuôi - thú y')
-on conflict (code) do nothing;
+create index if not exists idx_reports_department
+  on public.reports(department_id);
+
+create index if not exists idx_reports_period
+  on public.reports(period_start, period_end);
+
+create index if not exists idx_report_values_report
+  on public.report_values(report_id);
+
+create index if not exists idx_report_values_indicator
+  on public.report_values(indicator_id);
+
+create index if not exists idx_report_files_report
+  on public.report_files(report_id);
+
+alter table public.departments enable row level security;
+alter table public.profiles enable row level security;
+alter table public.indicators enable row level security;
+alter table public.reports enable row level security;
+alter table public.report_values enable row level security;
+alter table public.report_files enable row level security;
+alter table public.audit_logs enable row level security;
+
+create policy "Allow reading departments"
+on public.departments
+for select
+to anon, authenticated
+using (true);
