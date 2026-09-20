@@ -25,3 +25,6 @@ Thumbs.db
 
 # Local/private notes
 pass DB.txt
+
+# TypeScript build cache
+*.tsbuildinfo
