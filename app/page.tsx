@@ -3,12 +3,89 @@ import { redirect } from 'next/navigation';
 import { getCurrentProfile } from '../lib/auth';
 import { createClient } from '../lib/supabase/server';
 import { logout } from './login/actions';
+import { AppShell } from './components/AppShell';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Quản trị viên',
   manager: 'Lãnh đạo phòng',
   staff: 'Cán bộ',
 };
+
+// ── Inline SVG icon components (no external dependencies) ────────────
+
+function IconDashboard() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true">
+      <rect x="1" y="1" width="5.5" height="5.5" rx="1" />
+      <rect x="8.5" y="1" width="5.5" height="5.5" rx="1" />
+      <rect x="1" y="8.5" width="5.5" height="5.5" rx="1" />
+      <rect x="8.5" y="8.5" width="5.5" height="5.5" rx="1" />
+    </svg>
+  );
+}
+
+function IconReports() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <path d="M8.5 1.5H3.5A1 1 0 002.5 2.5v10a1 1 0 001 1h8a1 1 0 001-1V6L8.5 1.5z" />
+      <path d="M8.5 1.5v4.5h4.5" />
+      <line x1="5" y1="8.5" x2="10" y2="8.5" />
+      <line x1="5" y1="10.5" x2="8" y2="10.5" />
+    </svg>
+  );
+}
+
+function IconIndicators() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <polyline points="1.5,12 4.5,7.5 7.5,9.5 10.5,4.5 13.5,2.5" />
+      <line x1="1.5" y1="13.5" x2="13.5" y2="13.5" />
+    </svg>
+  );
+}
+
+function IconData() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <ellipse cx="7.5" cy="3.5" rx="5" ry="2" />
+      <path d="M2.5 3.5v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4" />
+      <path d="M2.5 7.5v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4" />
+    </svg>
+  );
+}
+
+function IconSummary() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <line x1="2" y1="4" x2="13" y2="4" />
+      <line x1="2" y1="7.5" x2="13" y2="7.5" />
+      <line x1="2" y1="11" x2="9" y2="11" />
+    </svg>
+  );
+}
+
+function IconUsers() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <circle cx="5.5" cy="4.5" r="2.5" />
+      <path d="M1 13c0-2.76 2.24-4 4.5-4s4.5 1.24 4.5 4" />
+      <path d="M11.5 7.5c1.38 0 2.5 1.12 2.5 2.5v2.5" strokeLinecap="round" />
+      <circle cx="11.5" cy="5" r="1.5" />
+    </svg>
+  );
+}
+
+function IconDepartments() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <rect x="1.5" y="7" width="4.5" height="6.5" />
+      <rect x="9" y="4" width="4.5" height="9.5" />
+      <line x1="3.75" y1="7" x2="3.75" y2="2.5" />
+      <line x1="3.75" y1="2.5" x2="11.25" y2="2.5" />
+      <line x1="11.25" y1="2.5" x2="11.25" y2="4" />
+    </svg>
+  );
+}
 
 export default async function Home() {
   // 1. Xác thực người dùng
@@ -70,140 +147,194 @@ export default async function Home() {
       ? `${Math.round((submittedOrApprovedReports / totalReports2026) * 100)}%`
       : '0%';
 
-  const stats = [
-    ['Báo cáo năm 2026', totalReports2026.toString(), 'Năm 2026'],
-    ['Đã nộp', submittedOrApprovedReports.toString(), submittedRate],
-    ['Chờ duyệt', pendingReports.toString(), totalReports2026 > 0 ? `${pendingReports} cần xử lý` : '0'],
-    ['Chỉ tiêu', totalIndicators.toString(), 'Đang áp dụng'],
-  ];
-
   return (
-    <main className="min-h-screen">
-      <header className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Hệ thống quản lý báo cáo</h1>
-            <p className="text-sm text-gray-500">MVP — kiến trúc sẵn sàng mở rộng</p>
+    <AppShell
+      sidebar={
+        <>
+          <div className="sidebar-logo">
+            <div className="sidebar-logo-title">Hệ thống quản lý báo cáo</div>
+            <div className="sidebar-logo-sub">Nền tảng quản lý chuyên ngành</div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/kiem-tra-supabase"
-              className="px-4 py-2 rounded-lg border text-sm hover:bg-gray-50 transition-colors"
-            >
-              Kiểm tra Supabase
+
+          <nav className="sidebar-nav">
+            <div className="sidebar-section-label">Chức năng</div>
+
+            <Link href="/" className="sidebar-item active">
+              <IconDashboard />
+              Tổng quan
             </Link>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-sm">
-              <div className="text-left">
-                <div className="font-semibold text-gray-900 leading-tight">{userDisplayName}</div>
-                <div className="text-xs text-gray-500">
-                  <span className="font-medium text-gray-700">{roleLabel}</span>
-                  {departmentName ? <span> · {departmentName}</span> : null}
-                </div>
+            <span className="sidebar-item">
+              <IconReports />
+              Báo cáo
+            </span>
+            <span className="sidebar-item">
+              <IconIndicators />
+              Chỉ tiêu
+            </span>
+            <span className="sidebar-item">
+              <IconData />
+              Dữ liệu
+            </span>
+            <span className="sidebar-item">
+              <IconSummary />
+              Tổng hợp
+            </span>
+
+            <div className="sidebar-section-label">Quản trị</div>
+            <span className="sidebar-item">
+              <IconUsers />
+              Người dùng
+            </span>
+            <span className="sidebar-item">
+              <IconDepartments />
+              Phòng ban
+            </span>
+          </nav>
+        </>
+      }
+      topbarTitle="Tổng quan"
+      topbarUser={
+        <>
+          <div>
+            <div className="topbar-user-name">{userDisplayName}</div>
+            <div className="topbar-user-meta">
+              {roleLabel}{departmentName ? ` · ${departmentName}` : ''}
+            </div>
+          </div>
+          <div className="topbar-avatar" aria-hidden="true">
+            {userDisplayName.charAt(0).toUpperCase()}
+          </div>
+          <form action={logout}>
+            <button type="submit" className="btn-logout">
+              Đăng xuất
+            </button>
+          </form>
+        </>
+      }
+    >
+          {queryError ? (
+            <div className="alert-error">
+              <strong>Lỗi truy xuất dữ liệu:</strong> {queryError.message}
+            </div>
+          ) : null}
+
+          {/* Stat cards */}
+          <div className="stat-grid">
+            <div className="stat-card stat-card-accent">
+              <div className="stat-card-label">Báo cáo năm 2026</div>
+              <div className="stat-card-value">{totalReports2026}</div>
+              <div className="stat-card-sub">Năm 2026</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Đã nộp</div>
+              <div className="stat-card-value">{submittedOrApprovedReports}</div>
+              <div className="stat-card-sub">{submittedRate} tổng số</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Chờ duyệt</div>
+              <div className="stat-card-value">{pendingReports}</div>
+              <div className="stat-card-sub">
+                {totalReports2026 > 0 ? `${pendingReports} cần xử lý` : 'Không có'}
               </div>
             </div>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="px-3 py-2 rounded-lg bg-gray-900 text-white text-sm hover:bg-gray-800 transition-colors cursor-pointer"
-              >
-                Đăng xuất
-              </button>
-            </form>
+            <div className="stat-card">
+              <div className="stat-card-label">Chỉ tiêu</div>
+              <div className="stat-card-value">{totalIndicators}</div>
+              <div className="stat-card-sub">Đang áp dụng</div>
+            </div>
           </div>
-        </div>
-      </header>
 
-      <div className="max-w-7xl mx-auto p-6">
-        {queryError ? (
-          <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
-            <p className="font-medium">Lỗi truy xuất dữ liệu từ cơ sở dữ liệu:</p>
-            <p className="text-xs mt-1 text-red-600">{queryError.message}</p>
-          </div>
-        ) : null}
+          {/* Content grid: department table + quick actions */}
+          <div className="content-grid">
+            {/* Department progress table */}
+            <div className="panel">
+              <div className="panel-header">
+                <div className="panel-title">Tiến độ nộp báo cáo</div>
+                <div className="panel-subtitle">Kỳ báo cáo năm 2026</div>
+              </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Phòng ban</th>
+                    <th style={{ textAlign: 'center' }}>Tổng</th>
+                    <th style={{ textAlign: 'center' }}>Đã nộp</th>
+                    <th style={{ textAlign: 'center' }}>Chờ duyệt</th>
+                    <th style={{ textAlign: 'center' }}>Tiến độ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {departmentsList.map((dept) => {
+                    const deptReports = reports.filter((r) => r.department_id === dept.id);
+                    const deptTotal = deptReports.length;
+                    const deptSubmitted = deptReports.filter(
+                      (r) => r.status === 'submitted' || r.status === 'approved'
+                    ).length;
+                    const deptPending = deptReports.filter(
+                      (r) => r.status === 'submitted'
+                    ).length;
 
-        <section className="grid md:grid-cols-4 gap-4">
-          {stats.map(([title, value, subtext]) => (
-            <div className="card p-5" key={title}>
-              <p className="text-sm text-gray-500">{title}</p>
-              <div className="mt-2 flex items-end justify-between">
-                <b className="text-3xl">{value}</b>
-                <span className="text-sm text-gray-500">{subtext}</span>
+                    // Logic tiến độ phòng ban — giữ nguyên từ phiên bản trước:
+                    // 0 báo cáo → badge xám "Chưa có"
+                    // có báo cáo → (đã nộp / tổng) * 100%
+                    // 100% → badge xanh lá; còn lại → badge xanh dương
+                    const progressPercent =
+                      deptTotal > 0 ? Math.round((deptSubmitted / deptTotal) * 100) : 0;
+                    const badgeClass =
+                      deptTotal === 0
+                        ? 'badge badge-gray'
+                        : progressPercent === 100
+                        ? 'badge badge-green'
+                        : 'badge badge-blue';
+
+                    return (
+                      <tr key={dept.id}>
+                        <td>{dept.name}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          {deptTotal > 0 ? deptTotal : '—'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {deptTotal > 0 ? deptSubmitted : '—'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {deptTotal > 0 ? deptPending : '—'}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={badgeClass}>
+                            {deptTotal > 0 ? `${progressPercent}%` : 'Chưa có'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Quick actions panel */}
+            <div className="panel">
+              <div className="panel-header">
+                <div className="panel-title">Thao tác nhanh</div>
+              </div>
+              <div className="quick-action-list">
+                <button className="quick-action-btn">
+                  <span className="quick-action-icon">📤</span>
+                  Upload báo cáo
+                </button>
+                <button className="quick-action-btn">
+                  <span className="quick-action-icon">📊</span>
+                  So sánh số liệu
+                </button>
+                <button className="quick-action-btn">
+                  <span className="quick-action-icon">📝</span>
+                  Tạo báo cáo
+                </button>
+                <button className="quick-action-btn">
+                  <span className="quick-action-icon">💬</span>
+                  Chat với dữ liệu
+                </button>
               </div>
             </div>
-          ))}
-        </section>
-
-        <section className="grid lg:grid-cols-3 gap-5 mt-6">
-          <div className="card p-5 lg:col-span-2">
-            <div className="flex justify-between items-center mb-5">
-              <div>
-                <h2 className="font-semibold">Tiến độ nộp báo cáo</h2>
-                <p className="text-sm text-gray-500">Kỳ báo cáo năm 2026</p>
-              </div>
-              <button className="border px-3 py-2 rounded-lg text-sm">Xem tất cả</button>
-            </div>
-
-            <div className="space-y-4">
-              {departmentsList.map((dept) => {
-                const deptReports = reports.filter((r) => r.department_id === dept.id);
-                const deptTotal = deptReports.length;
-                const deptSubmitted = deptReports.filter(
-                  (r) => r.status === 'submitted' || r.status === 'approved'
-                ).length;
-
-                // Logic tiến độ phòng ban:
-                // - Khi chưa có báo cáo: progress = 0%, hiển thị '0 báo cáo · Chưa có dữ liệu'
-                // - Khi đã có báo cáo: progress = (số báo cáo đã nộp hoặc duyệt / tổng báo cáo của phòng) * 100%
-                const progressPercent = deptTotal > 0 ? Math.round((deptSubmitted / deptTotal) * 100) : 0;
-                const statusLabel =
-                  deptTotal > 0
-                    ? `${deptSubmitted}/${deptTotal} đã nộp`
-                    : '0 báo cáo · Chưa có dữ liệu';
-
-                return (
-                  <div key={dept.id}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{dept.name}</span>
-                      <span className="text-gray-500">{statusLabel}</span>
-                    </div>
-                    <div className="h-2 rounded bg-gray-100 overflow-hidden">
-                      <div
-                        className="h-full bg-gray-800 transition-all duration-300"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
-
-          <div className="card p-5">
-            <h2 className="font-semibold">Thao tác nhanh</h2>
-            <div className="grid gap-3 mt-4">
-              <button className="text-left border rounded-xl p-4 hover:bg-gray-50">📤 Upload báo cáo</button>
-              <button className="text-left border rounded-xl p-4 hover:bg-gray-50">📊 So sánh số liệu</button>
-              <button className="text-left border rounded-xl p-4 hover:bg-gray-50">📝 Tạo báo cáo</button>
-              <button className="text-left border rounded-xl p-4 hover:bg-gray-50">💬 Chat với dữ liệu</button>
-            </div>
-          </div>
-        </section>
-
-        <section className="card p-5 mt-6">
-          <h2 className="font-semibold">Lộ trình triển khai</h2>
-          <div className="grid md:grid-cols-6 gap-3 mt-4">
-            {['Auth + phân quyền', 'Upload + Storage', 'Trích xuất dữ liệu', 'Dashboard', 'Word/PDF', 'Chat AI'].map(
-              (stage, index) => (
-                <div className="border rounded-xl p-4" key={stage}>
-                  <div className="text-xs text-gray-500">Giai đoạn {index + 1}</div>
-                  <div className="font-medium mt-2">{stage}</div>
-                </div>
-              )
-            )}
-          </div>
-        </section>
-      </div>
-    </main>
+    </AppShell>
   );
 }
-
