@@ -107,45 +107,25 @@ export default async function Home() {
   // 2. Truy vấn dữ liệu thực tế từ Supabase
   const supabase = await createClient();
 
-  const [indicatorsRes, departmentsRes, reportsRes] = await Promise.all([
+  const [indicatorsRes, reportsRes] = await Promise.all([
     // Đếm số lượng chỉ tiêu đang hoạt động (kỳ vọng: 97)
     supabase
       .from('indicators')
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true),
 
-    // Lấy 7 phòng ban chuẩn
-    supabase
-      .from('departments')
-      .select('id, code, name')
-      .eq('is_active', true)
-      .order('code', { ascending: true }),
-
     // Thống kê báo cáo trong năm 2026 trong phạm vi RLS của user
     supabase
       .from('reports')
-      .select('id, department_id, status')
+      .select('id', { count: 'exact' })
       .eq('year', 2026),
   ]);
 
   // Kiểm tra lỗi truy vấn
-  const queryError = indicatorsRes.error || departmentsRes.error || reportsRes.error;
+  const queryError = indicatorsRes.error || reportsRes.error;
 
   const totalIndicators = indicatorsRes.count ?? 0;
-  const reports = reportsRes.data ?? [];
-  const departmentsList = departmentsRes.data ?? [];
-
-  // Tính toán số liệu báo cáo năm 2026
-  const totalReports2026 = reports.length;
-  const submittedOrApprovedReports = reports.filter(
-    (r) => r.status === 'submitted' || r.status === 'approved'
-  ).length;
-  const pendingReports = reports.filter((r) => r.status === 'submitted').length;
-
-  const submittedRate =
-    totalReports2026 > 0
-      ? `${Math.round((submittedOrApprovedReports / totalReports2026) * 100)}%`
-      : '0%';
+  const totalReports2026 = reportsRes.count ?? (reportsRes.data ?? []).length;
 
   return (
     <AppShell
@@ -212,129 +192,190 @@ export default async function Home() {
         </>
       }
     >
-          {queryError ? (
-            <div className="alert-error">
-              <strong>Lỗi truy xuất dữ liệu:</strong> {queryError.message}
-            </div>
-          ) : null}
+      {queryError ? (
+        <div className="alert-error">
+          <strong>Lỗi truy xuất dữ liệu:</strong> {queryError.message}
+        </div>
+      ) : null}
 
-          {/* Stat cards */}
-          <div className="stat-grid">
-            <div className="stat-card stat-card-accent">
-              <div className="stat-card-label">Báo cáo năm 2026</div>
-              <div className="stat-card-value">{totalReports2026}</div>
-              <div className="stat-card-sub">Năm 2026</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-label">Đã nộp</div>
-              <div className="stat-card-value">{submittedOrApprovedReports}</div>
-              <div className="stat-card-sub">{submittedRate} tổng số</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-label">Chờ duyệt</div>
-              <div className="stat-card-value">{pendingReports}</div>
-              <div className="stat-card-sub">
-                {totalReports2026 > 0 ? `${pendingReports} cần xử lý` : 'Không có'}
+      {/* Stat cards */}
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+        <div className="stat-card stat-card-accent">
+          <div className="stat-card-label">Báo cáo năm 2026</div>
+          <div className="stat-card-value">{totalReports2026}</div>
+          <div className="stat-card-sub">Năm 2026</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Chỉ tiêu</div>
+          <div className="stat-card-value">{totalIndicators}</div>
+          <div className="stat-card-sub">Đang áp dụng</div>
+        </div>
+      </div>
+
+      {/* Content grid: Công việc chính + AI trợ lý */}
+      <div className="content-grid">
+        {/* Panel Công việc chính */}
+        <div className="panel">
+          <div className="panel-header">
+            <div className="panel-title">Công việc chính</div>
+            <div className="panel-subtitle">Chức năng quản lý và xử lý báo cáo</div>
+          </div>
+          <div
+            style={{
+              padding: '16px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '12px',
+            }}
+          >
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--card-border)',
+                background: '#fafbfc',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="quick-action-icon">
+                    <IconReports />
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                    Tạo báo cáo
+                  </span>
+                </div>
+                <span className="badge badge-gray">Chưa khả dụng</span>
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Tạo báo cáo theo mẫu được cấu hình
               </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-card-label">Chỉ tiêu</div>
-              <div className="stat-card-value">{totalIndicators}</div>
-              <div className="stat-card-sub">Đang áp dụng</div>
+
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--card-border)',
+                background: '#fafbfc',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="quick-action-icon">
+                    <IconData />
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                    Nhập dữ liệu
+                  </span>
+                </div>
+                <span className="badge badge-gray">Chưa khả dụng</span>
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Nhập và cập nhật số liệu báo cáo
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--card-border)',
+                background: '#fafbfc',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="quick-action-icon">
+                    <IconSummary />
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                    Tra cứu & so sánh
+                  </span>
+                </div>
+                <span className="badge badge-gray">Chưa khả dụng</span>
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Tìm kiếm, tra cứu và so sánh số liệu
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '14px 16px',
+                borderRadius: '8px',
+                border: '1px solid var(--card-border)',
+                background: '#fafbfc',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="quick-action-icon">
+                    <IconIndicators />
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                    Kho báo cáo
+                  </span>
+                </div>
+                <span className="badge badge-gray">Chưa khả dụng</span>
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                Lưu trữ và quản lý các báo cáo đã tạo
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Content grid: department table + quick actions */}
-          <div className="content-grid">
-            {/* Department progress table */}
-            <div className="panel">
-              <div className="panel-header">
-                <div className="panel-title">Tiến độ nộp báo cáo</div>
-                <div className="panel-subtitle">Kỳ báo cáo năm 2026</div>
-              </div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Phòng ban</th>
-                    <th style={{ textAlign: 'center' }}>Tổng</th>
-                    <th style={{ textAlign: 'center' }}>Đã nộp</th>
-                    <th style={{ textAlign: 'center' }}>Chờ duyệt</th>
-                    <th style={{ textAlign: 'center' }}>Tiến độ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {departmentsList.map((dept) => {
-                    const deptReports = reports.filter((r) => r.department_id === dept.id);
-                    const deptTotal = deptReports.length;
-                    const deptSubmitted = deptReports.filter(
-                      (r) => r.status === 'submitted' || r.status === 'approved'
-                    ).length;
-                    const deptPending = deptReports.filter(
-                      (r) => r.status === 'submitted'
-                    ).length;
-
-                    // Logic tiến độ phòng ban — giữ nguyên từ phiên bản trước:
-                    // 0 báo cáo → badge xám "Chưa có"
-                    // có báo cáo → (đã nộp / tổng) * 100%
-                    // 100% → badge xanh lá; còn lại → badge xanh dương
-                    const progressPercent =
-                      deptTotal > 0 ? Math.round((deptSubmitted / deptTotal) * 100) : 0;
-                    const badgeClass =
-                      deptTotal === 0
-                        ? 'badge badge-gray'
-                        : progressPercent === 100
-                        ? 'badge badge-green'
-                        : 'badge badge-blue';
-
-                    return (
-                      <tr key={dept.id}>
-                        <td>{dept.name}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          {deptTotal > 0 ? deptTotal : '—'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {deptTotal > 0 ? deptSubmitted : '—'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {deptTotal > 0 ? deptPending : '—'}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={badgeClass}>
-                            {deptTotal > 0 ? `${progressPercent}%` : 'Chưa có'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Quick actions panel */}
-            <div className="panel">
-              <div className="panel-header">
-                <div className="panel-title">Thao tác nhanh</div>
-              </div>
-              <div className="quick-action-list">
-                <button className="quick-action-btn">
-                  <span className="quick-action-icon">📤</span>
-                  Upload báo cáo
-                </button>
-                <button className="quick-action-btn">
-                  <span className="quick-action-icon">📊</span>
-                  So sánh số liệu
-                </button>
-                <button className="quick-action-btn">
-                  <span className="quick-action-icon">📝</span>
-                  Tạo báo cáo
-                </button>
-                <button className="quick-action-btn">
-                  <span className="quick-action-icon">💬</span>
-                  Chat với dữ liệu
-                </button>
-              </div>
-            </div>
+        {/* Panel AI trợ lý */}
+        <div className="panel">
+          <div className="panel-header">
+            <div className="panel-title">AI trợ lý</div>
+            <div className="panel-subtitle">Hỗ trợ thông minh</div>
           </div>
+          <div style={{ padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
+              <span className="quick-action-icon" style={{ fontSize: '16px' }}>💬</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text-primary)' }}>
+                  AI trợ lý
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px', lineHeight: 1.45 }}>
+                  Tra cứu dữ liệu, hỗ trợ tổng hợp và soạn thảo báo cáo
+                </div>
+              </div>
+            </div>
+            <span className="badge badge-gray">Chưa kích hoạt</span>
+          </div>
+        </div>
+      </div>
     </AppShell>
   );
 }
