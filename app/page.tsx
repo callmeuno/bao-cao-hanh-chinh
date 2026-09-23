@@ -228,13 +228,18 @@ export default async function Home() {
               gap: '12px',
             }}
           >
-            <div
+            <Link
+              href="/bao-cao/tao"
               style={{
+                display: 'block',
+                textDecoration: 'none',
                 padding: '14px 16px',
                 borderRadius: '8px',
                 border: '1px solid var(--card-border)',
-                background: '#fafbfc',
+                background: '#ffffff',
+                transition: 'border-color 0.15s, box-shadow 0.15s',
               }}
+              className="hover:border-blue-400 hover:shadow-sm"
             >
               <div
                 style={{
@@ -252,12 +257,12 @@ export default async function Home() {
                     Tạo báo cáo
                   </span>
                 </div>
-                <span className="badge badge-gray">Chưa khả dụng</span>
+                <span className="badge badge-blue">Tạo mới &rarr;</span>
               </div>
               <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                 Tạo báo cáo theo mẫu được cấu hình
               </div>
-            </div>
+            </Link>
 
             <div
               style={{
