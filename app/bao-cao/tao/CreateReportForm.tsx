@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createReportAction } from '../actions';
+import { createReportAction, type PeriodType } from '../actions';
 import type { UserProfile, DepartmentInfo } from '../../../types/auth';
 
 type Props = {
@@ -11,12 +11,55 @@ type Props = {
   departments: DepartmentInfo[];
 };
 
+function formatDateISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateVN(isoDate: string): string {
+  const parts = isoDate.split('-');
+  if (parts.length !== 3) return isoDate;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function getISOWeekNumber(d: Date): number {
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+  return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+}
+
+function getISOWeekYear(d: Date): number {
+  const target = new Date(d.valueOf());
+  const dayNr = (d.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  return target.getFullYear();
+}
+
 export function CreateReportForm({ profile, departments }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  // 1. Loại kỳ báo cáo: mặc định là 'year' (Năm)
+  const [periodType, setPeriodType] = useState<PeriodType>('year');
+
+  // Các state tương ứng với 5 loại kỳ
   const [year, setYear] = useState<number>(2026);
-  const [period, setPeriod] = useState<string>('year');
+  const [quarter, setQuarter] = useState<number>(3); // Mặc định Quý III
+  const [quarterYear, setQuarterYear] = useState<number>(2026);
+  const [month, setMonth] = useState<number>(9); // Mặc định Tháng 9
+  const [monthYear, setMonthYear] = useState<number>(2026);
+  const [weekDate, setWeekDate] = useState<string>('2026-09-23');
+  const [dayDate, setDayDate] = useState<string>('2026-09-23');
+
+  // Phòng ban
   const [departmentId, setDepartmentId] = useState<string>(() => {
     if (profile.role === 'admin') {
       if (profile.department_id && departments.some((d) => d.id === profile.department_id)) {
@@ -31,8 +74,96 @@ export function CreateReportForm({ profile, departments }: Props) {
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null);
 
   const isAdmin = profile.role === 'admin';
-  // Admin luôn được chọn phòng ban từ danh sách active; staff/manager cố định theo tài khoản
   const hasFixedDepartment = !isAdmin;
+
+  // Tính toán trước khoảng thời gian hiển thị trực quan (Live Preview)
+  const periodPreview = useMemo(() => {
+    if (periodType === 'year') {
+      return {
+        label: `Năm ${year}`,
+        start: `${year}-01-01`,
+        end: `${year}-12-31`,
+        year: year,
+        rangeText: `01/01/${year} đến 31/12/${year}`,
+      };
+    }
+
+    if (periodType === 'quarter') {
+      const quarters: Record<number, { s: string; e: string; roman: string }> = {
+        1: { s: '01-01', e: '03-31', roman: 'I' },
+        2: { s: '04-01', e: '06-30', roman: 'II' },
+        3: { s: '07-01', e: '09-30', roman: 'III' },
+        4: { s: '10-01', e: '12-31', roman: 'IV' },
+      };
+      const qInfo = quarters[quarter] || quarters[1];
+      const start = `${quarterYear}-${qInfo.s}`;
+      const end = `${quarterYear}-${qInfo.e}`;
+      return {
+        label: `Quý ${qInfo.roman}/${quarterYear}`,
+        start,
+        end,
+        year: quarterYear,
+        rangeText: `${formatDateVN(start)} đến ${formatDateVN(end)}`,
+      };
+    }
+
+    if (periodType === 'month') {
+      const mStr = String(month).padStart(2, '0');
+      const lastDay = new Date(monthYear, month, 0).getDate();
+      const start = `${monthYear}-${mStr}-01`;
+      const end = `${monthYear}-${mStr}-${String(lastDay).padStart(2, '0')}`;
+      return {
+        label: `Tháng ${mStr}/${monthYear}`,
+        start,
+        end,
+        year: monthYear,
+        rangeText: `${formatDateVN(start)} đến ${formatDateVN(end)}`,
+      };
+    }
+
+    if (periodType === 'week') {
+      if (!weekDate || !/^\d{4}-\d{2}-\d{2}$/.test(weekDate)) {
+        return null;
+      }
+      const [y, m, d] = weekDate.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (isNaN(dt.getTime())) return null;
+
+      // ISO week: Monday is the first day, Sunday the last
+      const dayOfWeek = dt.getDay(); // 0: Chủ Nhật, 1: Thứ Hai ... 6: Thứ Bảy
+      const isoDay = (dayOfWeek + 6) % 7; // 0: Monday, 6: Sunday
+      const monday = new Date(y, m - 1, d - isoDay);
+      const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+      const start = formatDateISO(monday);
+      const end = formatDateISO(sunday);
+      const repYear = getISOWeekYear(monday);
+      const weekNum = getISOWeekNumber(monday);
+
+      return {
+        label: `Tuần ${weekNum}/${repYear}`,
+        start,
+        end,
+        year: repYear,
+        rangeText: `Thứ Hai (${formatDateVN(start)}) đến Chủ Nhật (${formatDateVN(end)})`,
+      };
+    }
+
+    if (periodType === 'day') {
+      if (!dayDate || !/^\d{4}-\d{2}-\d{2}$/.test(dayDate)) {
+        return null;
+      }
+      const [y] = dayDate.split('-').map(Number);
+      return {
+        label: `Ngày ${formatDateVN(dayDate)}`,
+        start: dayDate,
+        end: dayDate,
+        year: y,
+        rangeText: formatDateVN(dayDate),
+      };
+    }
+
+    return null;
+  }, [periodType, year, quarter, quarterYear, month, monthYear, weekDate, dayDate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +182,12 @@ export function CreateReportForm({ profile, departments }: Props) {
 
     startTransition(async () => {
       const res = await createReportAction({
-        year,
-        period,
         departmentId: targetDeptId,
+        periodType,
+        year: periodType === 'year' ? year : periodType === 'quarter' ? quarterYear : periodType === 'month' ? monthYear : (periodPreview?.year ?? year),
+        quarter: periodType === 'quarter' ? quarter : undefined,
+        month: periodType === 'month' ? month : undefined,
+        date: periodType === 'week' ? weekDate : periodType === 'day' ? dayDate : undefined,
       });
 
       if (!res.success) {
@@ -117,10 +251,10 @@ export function CreateReportForm({ profile, departments }: Props) {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Năm báo cáo */}
+            {/* 1. Loại kỳ báo cáo */}
             <div>
               <label
-                htmlFor="year"
+                htmlFor="periodType"
                 style={{
                   display: 'block',
                   fontSize: '13px',
@@ -129,12 +263,12 @@ export function CreateReportForm({ profile, departments }: Props) {
                   marginBottom: '6px',
                 }}
               >
-                Năm báo cáo <span style={{ color: '#dc2626' }}>*</span>
+                Loại kỳ báo cáo <span style={{ color: '#dc2626' }}>*</span>
               </label>
               <select
-                id="year"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
+                id="periodType"
+                value={periodType}
+                onChange={(e) => setPeriodType(e.target.value as PeriodType)}
                 disabled={isPending}
                 style={{
                   width: '100%',
@@ -147,51 +281,307 @@ export function CreateReportForm({ profile, departments }: Props) {
                   outline: 'none',
                 }}
               >
-                <option value={2026}>2026 (Năm hiện tại)</option>
-                <option value={2025}>2025</option>
-                <option value={2024}>2024</option>
-                <option value={2027}>2027</option>
+                <option value="year">Năm</option>
+                <option value="quarter">Quý</option>
+                <option value="month">Tháng</option>
+                <option value="week">Tuần</option>
+                <option value="day">Ngày</option>
               </select>
             </div>
 
-            {/* Kỳ báo cáo */}
-            <div>
-              <label
-                htmlFor="period"
-                style={{
-                  display: 'block',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  marginBottom: '6px',
-                }}
-              >
-                Kỳ báo cáo <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <select
-                id="period"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                disabled={isPending}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--card-border)',
-                  background: '#ffffff',
-                  fontSize: '13.5px',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                }}
-              >
-                <option value="year">Cả năm (01/01 - 31/12)</option>
-              </select>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Hệ thống kiến trúc sẵn sàng cho kỳ Quý / Tháng / 6 Tháng ở giai đoạn tiếp theo.
+            {/* 2. Giao diện chọn thời gian theo loại kỳ */}
+            {periodType === 'year' && (
+              <div>
+                <label
+                  htmlFor="year"
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Năm báo cáo <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <select
+                  id="year"
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  disabled={isPending}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--card-border)',
+                    background: '#ffffff',
+                    fontSize: '13.5px',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                >
+                  <option value={2026}>2026 (Năm hiện tại)</option>
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
+                  <option value={2027}>2027</option>
+                </select>
               </div>
-            </div>
+            )}
 
-            {/* Phòng ban / Đơn vị lập */}
+            {periodType === 'quarter' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label
+                    htmlFor="quarter"
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Chọn Quý <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    id="quarter"
+                    value={quarter}
+                    onChange={(e) => setQuarter(Number(e.target.value))}
+                    disabled={isPending}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--card-border)',
+                      background: '#ffffff',
+                      fontSize: '13.5px',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value={1}>Quý I (01/01 - 31/03)</option>
+                    <option value={2}>Quý II (01/04 - 30/06)</option>
+                    <option value={3}>Quý III (01/07 - 30/09)</option>
+                    <option value={4}>Quý IV (01/10 - 31/12)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="quarterYear"
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Năm <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    id="quarterYear"
+                    value={quarterYear}
+                    onChange={(e) => setQuarterYear(Number(e.target.value))}
+                    disabled={isPending}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--card-border)',
+                      background: '#ffffff',
+                      fontSize: '13.5px',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value={2026}>2026</option>
+                    <option value={2025}>2025</option>
+                    <option value={2024}>2024</option>
+                    <option value={2027}>2027</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {periodType === 'month' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label
+                    htmlFor="month"
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Chọn Tháng <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    id="month"
+                    value={month}
+                    onChange={(e) => setMonth(Number(e.target.value))}
+                    disabled={isPending}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--card-border)',
+                      background: '#ffffff',
+                      fontSize: '13.5px',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                    }}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m}>
+                        Tháng {m < 10 ? `0${m}` : m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="monthYear"
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Năm <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    id="monthYear"
+                    value={monthYear}
+                    onChange={(e) => setMonthYear(Number(e.target.value))}
+                    disabled={isPending}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--card-border)',
+                      background: '#ffffff',
+                      fontSize: '13.5px',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value={2026}>2026</option>
+                    <option value={2025}>2025</option>
+                    <option value={2024}>2024</option>
+                    <option value={2027}>2027</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {periodType === 'week' && (
+              <div>
+                <label
+                  htmlFor="weekDate"
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Chọn ngày trong tuần <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  id="weekDate"
+                  type="date"
+                  value={weekDate}
+                  onChange={(e) => setWeekDate(e.target.value)}
+                  disabled={isPending}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--card-border)',
+                    background: '#ffffff',
+                    fontSize: '13.5px',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                />
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Quy ước tuần tính từ Thứ Hai đến Chủ Nhật. Chọn một ngày bất kỳ để xác định tuần tương ứng.
+                </div>
+              </div>
+            )}
+
+            {periodType === 'day' && (
+              <div>
+                <label
+                  htmlFor="dayDate"
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Chọn ngày báo cáo <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  id="dayDate"
+                  type="date"
+                  value={dayDate}
+                  onChange={(e) => setDayDate(e.target.value)}
+                  disabled={isPending}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--card-border)',
+                    background: '#ffffff',
+                    fontSize: '13.5px',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Khung thông tin xem trước thời gian kỳ báo cáo */}
+            {periodPreview && (
+              <div
+                style={{
+                  padding: '11px 14px',
+                  borderRadius: '6px',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  color: '#1e40af',
+                  fontSize: '13px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📅</span>
+                  <span>
+                    <strong>{periodPreview.label}:</strong> {periodPreview.rangeText}
+                  </span>
+                </div>
+                <div style={{ fontSize: '12px', color: '#3b82f6', fontWeight: 600 }}>
+                  Năm {periodPreview.year}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Phòng ban / Đơn vị lập */}
             <div>
               <label
                 style={{
