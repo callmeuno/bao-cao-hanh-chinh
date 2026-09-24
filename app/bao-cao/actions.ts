@@ -254,12 +254,11 @@ export async function saveReportValuesAction(params: {
   if (reportError || !report) {
     return { success: false, error: 'Không tìm thấy báo cáo hoặc bạn không có quyền truy cập.' };
   }
-
-  // Chỉ cho phép cập nhật dữ liệu khi báo cáo ở trạng thái draft hoặc rejected
-  if (report.status !== 'draft' && report.status !== 'rejected') {
+  // Chỉ cho phép cập nhật dữ liệu khi báo cáo ở trạng thái bản nháp
+  if (report.status !== 'draft') {
     return {
       success: false,
-      error: `Báo cáo đang ở trạng thái "${report.status}" nên chỉ có thể xem, không được phép chỉnh sửa số liệu.`,
+      error: 'Báo cáo không ở trạng thái bản nháp nên không thể chỉnh sửa số liệu.',
     };
   }
 

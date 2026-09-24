@@ -143,10 +143,10 @@ export default async function Home() {
               <IconDashboard />
               Tổng quan
             </Link>
-            <span className="sidebar-item">
+            <Link href="/bao-cao" className="sidebar-item">
               <IconReports />
               Báo cáo
-            </span>
+            </Link>
             <span className="sidebar-item">
               <IconIndicators />
               Chỉ tiêu

@@ -56,21 +56,6 @@ const STATUS_CONFIG: Record<string, { label: string; badgeClass: string; desc: s
     badgeClass: 'badge badge-gray',
     desc: 'Đang soạn thảo - có thể chỉnh sửa số liệu',
   },
-  submitted: {
-    label: 'Đã nộp',
-    badgeClass: 'badge badge-blue',
-    desc: 'Đã nộp lên cấp trên - chỉ xem, không thể chỉnh sửa',
-  },
-  approved: {
-    label: 'Đã phê duyệt',
-    badgeClass: 'badge badge-green',
-    desc: 'Báo cáo chính thức - dữ liệu được bảo vệ',
-  },
-  rejected: {
-    label: 'Từ chối',
-    badgeClass: 'badge',
-    desc: 'Yêu cầu cập nhật lại - có thể chỉnh sửa số liệu',
-  },
 };
 
 export function ReportDataEntryForm({ report, indicators, initialValues }: Props) {
@@ -113,7 +98,7 @@ export function ReportDataEntryForm({ report, indicators, initialValues }: Props
     message: string;
   } | null>(null);
 
-  const isEditable = report.status === 'draft' || report.status === 'rejected';
+  const isEditable = report.status === 'draft';
   const statusInfo = STATUS_CONFIG[report.status] || {
     label: report.status,
     badgeClass: 'badge badge-gray',
@@ -385,7 +370,7 @@ export function ReportDataEntryForm({ report, indicators, initialValues }: Props
           </div>
         )}
 
-        {/* Cảnh báo chế độ chỉ đọc nếu trạng thái không phải draft/rejected */}
+        {/* Báo cáo chỉ được chỉnh sửa khi ở trạng thái bản nháp */}
         {!isEditable && (
           <div
             style={{
