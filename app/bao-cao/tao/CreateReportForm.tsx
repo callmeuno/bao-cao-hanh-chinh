@@ -49,7 +49,7 @@ export function CreateReportForm({ profile, departments }: Props) {
 
   // 1. Loại kỳ báo cáo: mặc định là 'year' (Năm)
   const [periodType, setPeriodType] = useState<PeriodType>('year');
-  const [reportType, setReportType] = useState<'periodic' | 'ad_hoc'>('periodic');
+  const [reportType, setReportType] = useState<'dinh_ky' | 'dot_xuat'>('dinh_ky');
 
   // Các state tương ứng với 5 loại kỳ
   const [year, setYear] = useState<number>(2026);
@@ -189,9 +189,9 @@ export function CreateReportForm({ profile, departments }: Props) {
         departmentId: targetDeptId,
         periodType,
         reportType,
-        title: reportType === 'ad_hoc' ? title : undefined,
-        startDate: reportType === 'ad_hoc' ? startDate : undefined,
-        endDate: reportType === 'ad_hoc' ? endDate : undefined,
+        title: reportType === 'dot_xuat' ? title : undefined,
+        startDate: reportType === 'dot_xuat' ? startDate : undefined,
+        endDate: reportType === 'dot_xuat' ? endDate : undefined,
         year: periodType === 'year' ? year : periodType === 'quarter' ? quarterYear : periodType === 'month' ? monthYear : (periodPreview?.year ?? year),
         quarter: periodType === 'quarter' ? quarter : undefined,
         month: periodType === 'month' ? month : undefined,
@@ -275,7 +275,7 @@ export function CreateReportForm({ profile, departments }: Props) {
               <select
                 id="reportType"
                 value={reportType}
-                onChange={(e) => setReportType(e.target.value as 'periodic' | 'ad_hoc')}
+                onChange={(e) => setReportType(e.target.value as 'dinh_ky' | 'dot_xuat')}
                 disabled={isPending}
                 style={{
                   width: '100%',
@@ -288,12 +288,12 @@ export function CreateReportForm({ profile, departments }: Props) {
                   outline: 'none',
                 }}
               >
-                <option value="periodic">Định kỳ</option>
-                <option value="ad_hoc">Đột xuất</option>
+                <option value="dinh_ky">Định kỳ</option>
+                <option value="dot_xuat">Đột xuất</option>
               </select>
             </div>
 
-            {reportType === 'ad_hoc' && (
+            {reportType === 'dot_xuat' && (
               <>
                 <div>
                   <label
@@ -402,7 +402,7 @@ export function CreateReportForm({ profile, departments }: Props) {
               </>
             )}
 
-            {reportType === 'periodic' && (
+            {reportType === 'dinh_ky' && (
               <>
                 {/* 1. Loại kỳ báo cáo */}
                 <div>
@@ -708,7 +708,7 @@ export function CreateReportForm({ profile, departments }: Props) {
             )}
 
             {/* Khung thông tin xem trước thời gian kỳ báo cáo */}
-            {reportType === 'periodic' && periodPreview && (
+            {reportType === 'dinh_ky' && periodPreview && (
               <div
                 style={{
                   padding: '11px 14px',

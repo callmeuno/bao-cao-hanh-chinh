@@ -17,7 +17,7 @@ export type CreateReportParams = {
   quarter?: number;
   month?: number;
   date?: string;
-  reportType?: 'periodic' | 'ad_hoc';
+  reportType?: 'dinh_ky' | 'dot_xuat';
   title?: string;
   startDate?: string;
   endDate?: string;
@@ -91,14 +91,14 @@ export async function createReportAction(params: CreateReportParams): Promise<Cr
   }
 
   const periodType = (params.periodType || params.period || 'year') as PeriodType;
-  const reportType = params.reportType || 'periodic';
+  const reportType = params.reportType || 'dinh_ky';
 
   let periodStart: string;
   let periodEnd: string;
   let reportYear: number;
   let title: string;
 
-  if (reportType === 'ad_hoc') {
+  if (reportType === 'dot_xuat') {
     const adHocTitle = params.title?.trim();
     const startDate = params.startDate?.trim();
     const endDate = params.endDate?.trim();

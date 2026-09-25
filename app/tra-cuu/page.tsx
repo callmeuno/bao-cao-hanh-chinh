@@ -164,8 +164,8 @@ export default async function SearchReportsPage() {
               </div>
               <select className="form-input" defaultValue="">
                 <option value="">Tất cả loại báo cáo</option>
-                <option value="periodic">Định kỳ</option>
-                <option value="ad_hoc">Đột xuất</option>
+                <option value="dinh_ky">Định kỳ</option>
+                <option value="dot_xuat">Đột xuất</option>
               </select>
             </label>
 
