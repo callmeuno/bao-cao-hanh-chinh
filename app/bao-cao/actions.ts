@@ -13,10 +13,14 @@ export type CreateReportParams = {
   departmentId?: string;
   periodType?: PeriodType;
   year?: number;
-  period?: string; // Tương thích ngược nếu client cũ gọi
-  quarter?: number; // 1, 2, 3, 4
-  month?: number; // 1 .. 12
-  date?: string; // YYYY-MM-DD (dùng cho kỳ ngày hoặc tuần)
+  period?: string;
+  quarter?: number;
+  month?: number;
+  date?: string;
+  reportType?: 'periodic' | 'ad_hoc';
+  title?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 function formatDateISO(d: Date): string {
@@ -87,13 +91,55 @@ export async function createReportAction(params: CreateReportParams): Promise<Cr
   }
 
   const periodType = (params.periodType || params.period || 'year') as PeriodType;
+  const reportType = params.reportType || 'periodic';
 
   let periodStart: string;
   let periodEnd: string;
   let reportYear: number;
   let title: string;
 
-  if (periodType === 'year') {
+  if (reportType === 'ad_hoc') {
+    const adHocTitle = params.title?.trim();
+    const startDate = params.startDate?.trim();
+    const endDate = params.endDate?.trim();
+
+    if (!adHocTitle) {
+      return { success: false, error: 'Tiêu đề báo cáo không được để trống.' };
+    }
+
+    if (!startDate || !endDate) {
+      return {
+        success: false,
+        error: 'Vui lòng chọn ngày bắt đầu và ngày kết thúc.',
+      };
+    }
+
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
+    ) {
+      return { success: false, error: 'Định dạng ngày không hợp lệ.' };
+    }
+
+    if (startDate > endDate) {
+      return {
+        success: false,
+        error: 'Ngày bắt đầu không được lớn hơn ngày kết thúc.',
+      };
+    }
+
+    const parsedStart = new Date(`${startDate}T00:00:00`);
+    const parsedEnd = new Date(`${endDate}T00:00:00`);
+
+    if (Number.isNaN(parsedStart.getTime()) || Number.isNaN(parsedEnd.getTime())) {
+      return { success: false, error: 'Ngày báo cáo không hợp lệ.' };
+    }
+
+    reportYear = parsedStart.getFullYear();
+    periodStart = startDate;
+    periodEnd = endDate;
+    title = adHocTitle;
+  } else if (periodType === 'year') {
     const y = Number(params.year);
     if (!y || y < 2000 || y > 2100) {
       return { success: false, error: 'Năm báo cáo không hợp lệ (hỗ trợ từ năm 2000 đến 2100).' };
@@ -205,7 +251,7 @@ export async function createReportAction(params: CreateReportParams): Promise<Cr
     .insert({
       department_id: targetDepartmentId,
       title,
-      report_type: 'periodic',
+      report_type: reportType,
       period_start: periodStart,
       period_end: periodEnd,
       year: reportYear,

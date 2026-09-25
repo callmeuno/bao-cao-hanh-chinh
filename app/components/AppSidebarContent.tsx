@@ -89,9 +89,9 @@ export function AppSidebarContent({ active = 'dashboard' }: { active?: 'dashboar
           <IconDashboard />
           Tổng quan
         </Link>
-        <Link href="/bao-cao/tao" className={`sidebar-item ${active === 'reports' ? 'active' : ''}`}>
+        <Link href="/bao-cao" className={`sidebar-item ${active === 'reports' ? 'active' : ''}`}>
           <IconReports />
-          Tạo báo cáo
+          Báo cáo
         </Link>
         <span className="sidebar-item">
           <IconIndicators />

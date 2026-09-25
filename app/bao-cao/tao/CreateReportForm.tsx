@@ -49,6 +49,7 @@ export function CreateReportForm({ profile, departments }: Props) {
 
   // 1. Loại kỳ báo cáo: mặc định là 'year' (Năm)
   const [periodType, setPeriodType] = useState<PeriodType>('year');
+  const [reportType, setReportType] = useState<'periodic' | 'ad_hoc'>('periodic');
 
   // Các state tương ứng với 5 loại kỳ
   const [year, setYear] = useState<number>(2026);
@@ -58,6 +59,9 @@ export function CreateReportForm({ profile, departments }: Props) {
   const [monthYear, setMonthYear] = useState<number>(2026);
   const [weekDate, setWeekDate] = useState<string>('2026-09-23');
   const [dayDate, setDayDate] = useState<string>('2026-09-23');
+  const [title, setTitle] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   // Phòng ban
   const [departmentId, setDepartmentId] = useState<string>(() => {
@@ -184,6 +188,10 @@ export function CreateReportForm({ profile, departments }: Props) {
       const res = await createReportAction({
         departmentId: targetDeptId,
         periodType,
+        reportType,
+        title: reportType === 'ad_hoc' ? title : undefined,
+        startDate: reportType === 'ad_hoc' ? startDate : undefined,
+        endDate: reportType === 'ad_hoc' ? endDate : undefined,
         year: periodType === 'year' ? year : periodType === 'quarter' ? quarterYear : periodType === 'month' ? monthYear : (periodPreview?.year ?? year),
         quarter: periodType === 'quarter' ? quarter : undefined,
         month: periodType === 'month' ? month : undefined,
@@ -251,8 +259,153 @@ export function CreateReportForm({ profile, departments }: Props) {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* 1. Loại kỳ báo cáo */}
             <div>
+              <label
+                htmlFor="reportType"
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: '6px',
+                }}
+              >
+                Loại báo cáo <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <select
+                id="reportType"
+                value={reportType}
+                onChange={(e) => setReportType(e.target.value as 'periodic' | 'ad_hoc')}
+                disabled={isPending}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--card-border)',
+                  background: '#ffffff',
+                  fontSize: '13.5px',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+              >
+                <option value="periodic">Định kỳ</option>
+                <option value="ad_hoc">Đột xuất</option>
+              </select>
+            </div>
+
+            {reportType === 'ad_hoc' && (
+              <>
+                <div>
+                  <label
+                    htmlFor="title"
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    Tiêu đề báo cáo <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <input
+                    id="title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={isPending}
+                    placeholder="Nhập tiêu đề báo cáo"
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--card-border)',
+                      background: '#ffffff',
+                      fontSize: '13.5px',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                  }}
+                >
+                  <div>
+                    <label
+                      htmlFor="startDate"
+                      style={{
+                        display: 'block',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Từ ngày <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      id="startDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      disabled={isPending}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--card-border)',
+                        background: '#ffffff',
+                        fontSize: '13.5px',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="endDate"
+                      style={{
+                        display: 'block',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Đến ngày <span style={{ color: '#dc2626' }}>*</span>
+                    </label>
+                    <input
+                      id="endDate"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      disabled={isPending}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--card-border)',
+                        background: '#ffffff',
+                        fontSize: '13.5px',
+                        color: 'var(--text-primary)',
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {reportType === 'periodic' && (
+              <>
+                {/* 1. Loại kỳ báo cáo */}
+                <div>
               <label
                 htmlFor="periodType"
                 style={{
@@ -551,9 +704,11 @@ export function CreateReportForm({ profile, departments }: Props) {
                 />
               </div>
             )}
+              </>
+            )}
 
             {/* Khung thông tin xem trước thời gian kỳ báo cáo */}
-            {periodPreview && (
+            {reportType === 'periodic' && periodPreview && (
               <div
                 style={{
                   padding: '11px 14px',
