@@ -11,6 +11,7 @@ import {
   type IndicatorItem,
   type ExistingReportValue,
 } from './ReportDataEntryForm';
+import { ReportCropsSection, type LocationItem, type ReportCropItem } from './ReportCropsSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -193,6 +194,26 @@ export default async function ReportDataEntryPage({ params }: Props) {
     note: v.note,
   }));
 
+  // 5. Truy vấn danh sách địa bàn
+  const { data: rawLocations } = await supabase
+    .from('locations')
+    .select('id, name, level')
+    .order('name');
+  
+  const locations: LocationItem[] = (rawLocations || []).map(loc => ({
+    id: loc.id,
+    name: loc.name,
+    level: loc.level,
+  }));
+
+  // 6. Truy vấn dữ liệu Trồng trọt đã nhập
+  const { data: rawCrops } = await supabase
+    .from('report_crops')
+    .select('*')
+    .eq('report_id', report.id);
+
+  const initialCrops: ReportCropItem[] = rawCrops || [];
+
   return (
     <AppShell
       sidebar={<AppSidebarContent active="reports" />}
@@ -220,6 +241,15 @@ export default async function ReportDataEntryPage({ params }: Props) {
         <div className="alert-error" style={{ marginBottom: '16px' }}>
           <strong>Lỗi tải danh mục chỉ tiêu:</strong> {indErr.message}
         </div>
+      ) : null}
+
+            {deptInfo?.name === 'Trồng trọt và BVTV' ? (
+        <ReportCropsSection
+          reportId={report.id}
+          status={report.status}
+          locations={locations}
+          initialData={initialCrops}
+        />
       ) : null}
 
       <ReportDataEntryForm
