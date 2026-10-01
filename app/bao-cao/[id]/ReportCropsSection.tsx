@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useTransition } from 'react';
 import { saveReportCropsAction } from './crop-actions';
@@ -65,23 +65,50 @@ return newItems;
 };
 
 const handleSave = () => {
-setMessage(null);
-startTransition(async () => {
-const result = await saveReportCropsAction(reportId, items);
-  if (result.success) {
-    setMessage({
-      type: 'success',
-      text: 'Lưu dữ liệu Trồng trọt thành công!',
-    });
-    router.refresh();
-  } else {
-    setMessage({
-      type: 'error',
-      text: result.error || 'Lỗi khi lưu dữ liệu.',
-    });
+  // Reset any previous message
+  setMessage(null);
+
+  // Validate each row before saving
+  for (let i = 0; i < items.length; i++) {
+    const row = items[i];
+    const rowIdx = i + 1;
+    // Check for negative numeric values
+    const numericFields = [
+      { label: 'Diện tích kế hoạch', value: row.planned_area },
+      { label: 'Diện tích gieo trồng', value: row.planted_area },
+      { label: 'Diện tích thu hoạch', value: row.harvested_area },
+      { label: 'Năng suất', value: row.yield },
+    ];
+    for (const f of numericFields) {
+      if (f.value !== null && f.value < 0) {
+        setMessage({ type: 'error', text: `Dòng ${rowIdx}: ${f.label} không được âm.` });
+        return;
+      }
+    }
+    // Planned vs planted area
+    if (row.planned_area !== null && row.planted_area !== null && row.planted_area > row.planned_area) {
+      setMessage({ type: 'error', text: `Dòng ${rowIdx}: Diện tích gieo trồng không được lớn hơn diện tích kế hoạch.` });
+      return;
+    }
+    // Planted vs harvested area
+    if (row.planted_area !== null && row.harvested_area !== null && row.harvested_area > row.planted_area) {
+      setMessage({ type: 'error', text: `Dòng ${rowIdx}: Diện tích thu hoạch không được lớn hơn diện tích gieo trồng.` });
+      return;
+    }
   }
-});
+
+  // All validations passed – proceed to save
+  startTransition(async () => {
+    const result = await saveReportCropsAction(reportId, items);
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Lưu dữ liệu Trồng trọt thành công!' });
+      router.refresh();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Lỗi khi lưu dữ liệu.' });
+    }
+  });
 };
+
 
 const parseNumberInput = (val: string) => {
 if (!val) return null;
